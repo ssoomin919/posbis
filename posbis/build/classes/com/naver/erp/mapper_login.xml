@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+
+
+<mapper namespace="com.naver.erp.LoginDAO">
+<!--********************************************************************-->
+<!--로그인 아이디 암호 개수  -->
+	<select id='getAdminCnt' parameterType="hashmap" resultType="int">
+		select 
+			count(*) 
+		from user_info 
+		where user_id=#{user_id} and user_pwd=#{user_pwd}
+	</select>
+
+
+
+<!--********************************************************************-->
+ <!-- 아이디 중복 겁사 -->
+	<select id='getJoinIDCnt' parameterType="hashmap" resultType="int">
+		select count(*) from user_info where user_id=#{user_id} 
+	</select>
+  
+<!--********************************************************************-->
+<!-- 주소 구데이터 가져오기 -->   
+   	<select id='getAddrListGu' resultType="java.util.HashMap"   >
+	select	
+		distinct addr_gu  		as "addr_gu"
+ 	from addr
+	where 1=1 
+	order by addr_gu
+	</select>
+ 
+ 
+ 
+<!--********************************************************************-->
+<!-- 동 구데이터 가져오기  resultType는 한 행에 대한 결과의 자료형-->   
+   	<select id='getAddrListDong' parameterType="String"  resultType="String" >
+	select	
+		addr_dong 		as "addr_dong"
+ 	from addr
+	where 1=1 and addr_gu=#{addr_gu} 
+	order by addr_dong
+	</select>
+ 
+<!--********************************************************************-->
+<!-- 업종1 구데이터 가져오기 -->   
+   	<select id='getbusinessTypeList1' resultType="java.util.HashMap"   >
+	select
+		distinct business_type_name1   		as "business_type_name1"
+ 	from code_business_type
+	where 1=1 
+	order by business_type_name1
+	</select>
+  	
+<!--********************************************************************-->
+<!-- 업종2 구데이터 가져오기 -->    	
+	<select id='getbusinessTypeList2' resultType="String" parameterType="String"  >
+	select	
+		business_type_name2 		as "business_type_name2"
+ 	from code_business_type
+	where 1=1 and business_type_name1=#{business_type_name1} 
+	order by business_type_name2
+	</select>
+<!--********************************************************************-->
+<!--회원가입 등록 대표자 정보 -->   
+   <insert id='insertJoinUser' parameterType="com.naver.erp.JoinDTO">
+   insert into user_info(
+          u_no
+          ,user_id         
+          ,user_pwd         
+          ,rank_code
+          ,user_name 
+          ,birth
+          ,email 
+          ,question_code
+          ,answer 
+	)values (
+        (select nvl(max(u_no),0)+1 from user_info)
+          ,#{user_id}
+          ,#{user_pwd}
+          ,#{rank_code}   
+          ,#{user_name} 
+          ,#{birth}
+          ,#{email}
+          ,#{question_code}
+          ,#{answer}
+		)
+   </insert>
+<!--********************************************************************-->
+<!--회원가입 등록 사업장 정보 -->   
+   <insert id='insertJoinBusinessInfo' parameterType="com.naver.erp.JoinDTO">
+  insert into business_info(
+          business_no
+          ,u_no         
+          ,business_name 
+          ,addr_no
+          ,addr_detail
+          ,business_type_code
+          ,store_tel_num 
+ 
+	)values (
+          #{business_no}
+          ,(select u_no from(select * from user_info order by u_no desc) where rownum=1) 
+          ,#{business_name}
+          ,(select addr_no from addr where addr_no = (select addr_no from addr where addr_gu=#{addr_gu} and addr_dong=#{addr_dong}))
+          ,#{addr_detail} 
+          ,(select distinct business_type_code from code_business_type where business_type_code = (select business_type_code from code_business_type where business_type_name1=#{business_type_name1} and business_type_name2=#{business_type_name2}))
+          ,#{store_tel_num}
+		)
+         
+   </insert>
+   
+   
+<!--회원가입 등록 운영시간 정보 -->   
+   <insert id='insertJoinSalesTime' parameterType="com.naver.erp.JoinDTO">
+  insert into sales_time(
+          business_no
+          , business_open
+          , business_close 
+ 
+	)values (
+          #{business_no}
+          ,#{business_open}
+          ,#{business_close} 
+          
+		)
+         
+   </insert>   
+   
+   
+   
+<!--********************************************************************-->
+<!--탈퇴시 아이디 암호 조회 및 삭제  -->
+<!-- 성유진 mapper -->
+	<delete id="deleteUserInfo" parameterType="hashmap" >
+	delete from user_info where u_no=(select u_no from  user_info where user_id=#{user_id} and user_pwd=#{user_pwd})
+	</delete> 
+<!-- 성유진 mapper 끝 --> 
+
+
+<!--********************************************************************-->
+<!--로그인 아이디 암호 개수  -->
+	<select id='getBusinessnoCnt' parameterType="hashmap" resultType="int">
+		select 
+			count(*) 
+		from business_info 
+		where business_no=#{business_no}
+	</select>
+
+<!--********************************************************************-->
+<!-- 아이디 암호 사업자번호 조회 후  개수- -->
+	<select id='getfindBusinessNoCnt' parameterType="hashmap" resultType="int">
+		select 
+			count(*) 
+		from business_info 
+		where business_no = #{business_no} 
+	</select>
+	
+	<select id='getfindIDPasswordCnt' parameterType="hashmap" resultType="int">
+		select 
+			count(*) 
+		from user_info 
+		where user_name=#{user_name} and question_code=#{question_code} and answer=#{answer}
+	</select>
+	
+<!--********************************************************************-->
+<!-- 아이디 암호 사업자번호 조회 후  개수- -->
+
+	<select id='getfindIDPwd' parameterType="hashmap" resultType="com.naver.erp.SearchIDPwdDTO">
+		select 
+			u.user_id		as "user_id"
+			,u.user_pwd		as "user_pwd"
+		from user_info u, business_info b 
+		where user_name=#{user_name} and question_code=#{question_code} and answer=#{answer}
+				and business_no=#{business_no} and b.u_no=u.u_no
+	</select>
+<!--********************************************************************-->
+
+
+
+
+<!-- business_no에 따른 나의 정보 얻어 오기 -->
+
+	<select id='getMyInfo' parameterType="String" resultType="java.util.HashMap">
+		select
+		    u.user_id "user_id"
+		    , u.user_name "user_name"
+		    , email "email"
+		    , b.business_no "business_no"
+		    , b.business_name "business_name"
+		    , (SELECT
+		        substr(xmlagg(xmlelement(x,',', a.addr_gu||' '||a.addr_dong ||' '|| b.addr_detail
+		        )).extract('//text()'),2)
+		      from addr a where b.addr_no = a.addr_no ) "store_addr"
+		    , (SELECT
+		        substr(xmlagg(xmlelement(x,',', c.business_type_name1||' ('||c.business_type_name2 ||')'
+		        )).extract('//text()'),2)
+		      from code_business_type c where b.business_type_code = c.business_type_code ) "business_type"
+		    , (select st.business_open "business_open" from sales_time st where b.business_no = st.business_no)   "business_open"
+            , (select st.business_close "business_close" from sales_time st where b.business_no = st.business_no) "business_close"  
+		    , b.store_tel_num "store_tel_num"
+		from user_info u , business_info b
+		where u.u_no = b.u_no and business_no = #{business_no}
+	</select>
+
+
+
+
+
+
+<!-- business_no에 따른 나의 정보, 가게 정보 얻어오기 (회원정보 수정 부분) -->
+
+	<select id='getMyNStoreInfo' parameterType="String" resultType="java.util.HashMap">
+		select
+		    u.user_id "user_id"
+		    , u.user_name "user_name"
+		    , u.email "email"
+		    , u.birth "birth"
+		    , u.rank_code "rank_code"
+		    , b.business_no "business_no"
+		    , b.business_name "business_name"
+		    , (select a.addr_gu from addr a where a.addr_no = b.addr_no) "addr_gu"  
+		    , (select a.addr_dong from addr a where a.addr_no = b.addr_no) "addr_dong"
+		    , b.addr_detail "addr_detail"  
+		    , (select c.business_type_name1 from code_business_type c where c.business_type_code = b.business_type_code) "business_type_name1"  
+		    , (select c.business_type_name2 from code_business_type c where c.business_type_code = b.business_type_code) "business_type_name2"
+		    , (select st.business_open "business_open" from sales_time st where b.business_no = st.business_no)   "business_open"
+            , (select st.business_close "business_close" from sales_time st where b.business_no = st.business_no) "business_close"
+		    , b.store_tel_num "store_tel_num"
+		from user_info u , business_info b
+		where u.u_no = b.u_no and business_no = #{business_no}
+	</select>
+	
+	
+
+<!-- 등급코드 얻기 -->
+
+	<select id='getRankCode' parameterType="String" resultType="String">
+		select rank_code from user_info where user_id = #{user_id}
+	</select>	
+	
+	
+
+<!-- (회원정보) 유저정보 수정하기 -->
+	
+ 	<update id="updateInfoUser" parameterType="com.naver.erp.UpdateInfoDTO">
+		update user_info set 
+			user_id = #{user_id}
+			<if test="newPwd != null and newPwd.length() > 0">
+				, user_pwd = #{newPwd}	
+			</if>
+			, rank_code = #{rank_code}
+			, user_name = #{user_name}
+			, birth = #{birth}
+			, email = #{email}
+		where u_no=#{u_no} and user_pwd = #{user_pwd}
+	
+	</update>
+	
+	
+<!-- (회원정보) 가게정보 수정하기 -->
+	
+ 	<update id="updateInfoBusiness" parameterType="com.naver.erp.UpdateInfoDTO">
+		update business_info set 
+			business_name = #{business_name}
+			, addr_no = (select addr_no from addr where addr_no = (select addr_no from addr where addr_gu=#{addr_gu} and addr_dong=#{addr_dong}))
+			, addr_detail = #{addr_detail}
+			, business_type_code = (select distinct business_type_code from code_business_type where business_type_code = (select business_type_code from code_business_type where business_type_name1=#{business_type_name1} and business_type_name2=#{business_type_name2}))
+			, store_tel_num = #{store_tel_num}
+		where u_no=#{u_no} and business_no = #{business_no} 
+	
+	</update>	
+	
+
+<!--============================== 김수민 추가 ==============================-->
+<!-- (회원정보) 가게 영업시간 수정하기 -->
+	
+ 	<update id="updateSalesTime" parameterType="com.naver.erp.UpdateInfoDTO">
+		update sales_time set 
+			business_open = #{business_open}
+			, business_close = #{business_close}
+		where business_no = #{business_no} 
+	
+	</update>	
+<!-- ======================================================================= -->
+	
+
+<!-- 카드갯수구하기 -->
+
+	<select id='getCardCnt' parameterType="int" resultType="int">
+		select count(*) from card where u_no = #{u_no}
+	</select>
+
+
+<!-- 카드 지우기 -->
+	<delete id='deleteinfoCard' parameterType="int" >
+		delete from card where u_no = #{u_no}
+	</delete> 
+	
+	
+<!-- 카드 생성하기 -->   
+   <insert id='insertCard' parameterType="com.naver.erp.CardDTO">
+   insert into card(
+          u_no
+          ,credit_no         
+          ,ex_year        
+          ,ex_month
+          ,cvc_no 
+          ,jumin_no
+          ,credit_pwd 
+
+	)values (
+       	#{u_no}
+          ,#{credit_no}
+          ,#{ex_year}
+          ,#{ex_month}   
+          ,#{cvc_no} 
+          ,#{jumin_no}
+          ,#{credit_pwd}
+
+		)
+   </insert>	
+
+
+<!-- 카드 등록 시 유저 등급 업데이트 (프리미엄)-->
+ 	<update id="updateRank" parameterType="int">
+		update user_info set rank_code = '2' where u_no=#{u_no}
+	
+	</update>
+	
+	<!-- 카드 등록 취소 시 유저 등급 업데이트 (일반_ -->
+ 	<update id="updateRank2" parameterType="int">
+		update user_info set rank_code = '1' where u_no=#{u_no}
+	
+	</update>
+
+
+<!-- 내 가게 정보 (홈페이지)      이정숙꺼 =================================================================================]-->
+	<select id='getMyStoreInfoList' parameterType="com.naver.erp.MyStoreInfoDTO" resultType="java.util.HashMap">
+		
+		select * from(
+				select b.*, rownum RNUM from(   
+						select
+						    u.user_id "user_id"
+						    , b.business_no "business_no"
+						    , b.business_name "business_name"
+						    , (select a.addr_gu from addr a where a.addr_no = b.addr_no) "addr_gu"  
+						    , (select a.addr_dong from addr a where a.addr_no = b.addr_no) "addr_dong"
+						    , b.addr_detail "addr_detail"  
+						    , (select c.business_type_name1 from code_business_type c where c.business_type_code = b.business_type_code) "business_type_name1"  
+						    , (select c.business_type_name2 from code_business_type c where c.business_type_code = b.business_type_code) "business_type_name2"
+						    , b.store_tel_num "store_tel_num"
+						    , b.business_type_code||'' "business_type_code"
+						from user_info u , business_info b
+						where u.u_no = b.u_no 
+								and u.u_no = #{u_no}) b)
+		<!-- where RNUM &gt; =${selectPageNo2-2}
+							 and RNUM &lt; =${selectPageNo2} -->
+						
+						
+	</select>
+	<select id='getMyStoreInfoAllCnt' parameterType="com.naver.erp.MyStoreInfoDTO" resultType="int">
+		select  count(*) from user_info u , business_info b
+		where u.u_no = b.u_no and u.u_no = #{u_no}
+
+	</select>
+<!-- / 내 가게 정보 (홈페이지) 이정숙끝=========================================================================== -->
+		
+		
+<!-- ==================================================김수민========================================================= -->
+		
+<insert id='insertBusi' parameterType="com.naver.erp.BusiInfoDTO">
+  insert into business_info(
+          business_no
+          ,u_no         
+          ,business_name 
+          ,addr_no
+          ,addr_detail
+          ,business_type_code
+          ,store_tel_num 
+ 
+	)values (
+          #{business_no}
+          ,(select u_no from user_info where u_no=#{u_no}) 
+          ,#{business_name}
+          ,(select addr_no from addr where addr_no = (select addr_no from addr where addr_gu=#{addr_gu} and addr_dong=#{addr_dong}))
+          ,#{addr_detail} 
+          ,(select distinct business_type_code from code_business_type where business_type_code = (select business_type_code from code_business_type where business_type_name1=#{business_type_name1} and business_type_name2=#{business_type_name2}))
+          ,#{store_tel_num}
+		)
+</insert>	
+
+
+<insert id='insertNewSalesTime' parameterType="com.naver.erp.BusiInfoDTO">
+  insert into sales_time(
+          business_no
+          , business_open
+          , business_close 
+ 
+	)values (
+          #{business_no}
+          ,#{business_open}
+          ,#{business_close} 
+          
+		)
+</insert>
+
+<!-- 김수민 -->
+<!-- 회원정보 수정 시 유저의 현재 비밀번호 확인 -->
+<select id="getUserPwd" parameterType="int" resultType="String">
+	select user_pwd from user_info where u_no=#{u_no}
+</select>
+<!-- =========================================== -->
+
+<select id="getPwdCnt" parameterType="com.naver.erp.BusiInfoDTO" resultType="int">
+	select count(*) from user_info where u_no=#{u_no} and user_pwd=#{user_pwd}
+</select>
+
+<select id="getPwdCnt2" parameterType="java.util.HashMap" resultType="int">
+	select count(*) from user_info where user_id=#{user_id} and user_pwd=#{user_pwd}
+</select>
+
+<delete id='deleteBusi' parameterType="java.util.HashMap">
+	delete from business_info where business_no = #{business_no}
+</delete>	
+<!-- ============================================================================================================================ -->
+		
+	
+</mapper>

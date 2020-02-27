@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"  "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+ 
+
+
+<mapper namespace="com.naver.erp.PosPayDAO">
+ 
+<!-- 메뉴 리스트 select -->
+<!--**************************************************************************-->
+  <select id="getPosMenuList" parameterType="String" resultType="java.util.HashMap">
+  	select 
+  		menu_no
+  		, menu_price
+  		, menu_name 
+  	from menu
+  	where business_no=#{business_no}
+  		 and menu_using='Y'
+	</select>
+	
+<!-- 	
+	메뉴 총개수 
+**************************************************************************
+  <select id="getPosMenuAllCnt" parameterType="String" resultType="int">
+  		select count(*) from menu where business_no=#{business_no}
+	</select>
+	
+	 -->
+	 
+	 
+
+<!--메뉴 클릭시 정보 불러오기  -->	
+	<select id="getPosPerMenuList" parameterType="com.naver.erp.PosMenuDTO" resultType="java.util.HashMap">
+	 	select
+	 		nvl(to_char(menu_no),'0')   as   "menu_no"
+	 		,business_no   as   "business_no"
+	 		,menu_name   as   "menu_name" 
+		    ,nvl(to_char(menu_price),'0')  as   "menu_price"
+		    ,nvl(to_char(menu_cost),'0')as   "menu_cost"
+		    ,menu_category_code as   "menu_category_code"
+		    ,menu_using as   "menu_using"
+		from menu where business_no=#{business_no} and menu_name=#{menu_name}
+   </select>
+   
+<!-- 가게이름 불러오기 -->   
+	<select id="getBusiness_name" parameterType="String" resultType="String">
+		select business_name from business_info where business_no=#{business_no}
+	</select>
+  	
+<!--   메뉴 결제시 매출 insert  -->
+<insert id="updateSalesNo" parameterType="com.naver.erp.PosMenuSalesDTO">
+
+insert into sales(
+            business_no
+            , business_type_code
+            , addr_no
+            , menu_no
+            , menu_name
+            , menu_category_code
+            , menu_price
+            , menu_cost
+            , sales_count
+            , sales_date
+    )values(
+            (select business_no from business_info where business_no=#{business_no})
+            ,(select business_type_code from business_info where business_no=#{business_no})
+            ,(select addr_no from business_info where business_no=#{business_no})
+            ,(select menu_no from menu where menu_name=#{menu_name1} and business_no=#{business_no})
+            ,(select menu_name from menu where menu_name=#{menu_name1} and business_no=#{business_no})
+            ,(select menu_category_code from menu where menu_name=#{menu_name1} and business_no=#{business_no})
+            ,(select menu_price from menu where menu_name=#{menu_name1} and business_no=#{business_no})
+            ,(select menu_cost from menu where menu_name=#{menu_name1} and business_no=#{business_no})
+            ,#{sales_count1}
+            ,sysdate
+       )
+          
+</insert> 
+ 
+<select id="getPosSalesList" parameterType="com.naver.erp.PosSearchDTO" resultType="java.util.HashMap">
+<!-- select * from        
+(select 
+    rownum  as "no"
+    ,to_char(xxx.sales_date,'yyyy-mm-dd (dy) HH:MI:SS PM')   as "sales_date"  
+    ,xxx.sales_count      as "sales_count"
+from(select 
+       sales_date       
+       ,sum(sales_count)||'' as sales_count  		 
+      from sales
+      where 1=1 and business_no=#{business_no}
+    group by sales_date 
+    order by 1 desc)xxx) where <![CDATA[RNUM >= ${selectPageNo*rowCntPerPage-rowCntPerPage + 1}  
+			and RNUM <= ${selectPageNo*rowCntPerPage}]]>
+			
+			
+select * from(
+			select 
+			     xxx.*,rownum RNUM
+			from(select 
+			        to_char(sales_date,'yyyy-mm-dd (dy) HH:MI:SS PM')   as "sales_date"      
+			       ,sum(sales_count)||'' as sales_count  		 
+			      from sales
+			      where 1=1 and business_no=#{business_no}
+			    group by sales_date 
+			    order by 1 desc)xxx) where
+    <![CDATA[
+			RNUM >= ${selectPageNo*rowCntPerPage-rowCntPerPage + 1}  
+			and 
+			RNUM <= ${selectPageNo*rowCntPerPage}
+		]]> -->		
+   
+select * from
+    (select 
+    xxx.* 
+    ,rownum RNUM
+from(select 
+    to_char(sales_date,'yyyy-mm-dd (dy) HH:MI:SS PM')   as "sales_date"       
+       ,sum(sales_count)||'' as "sales_count"  		 
+      from sales
+      where 1=1 and business_no=#{business_no}
+    group by sales_date 
+    order by to_char(sales_date, 'yyyy.mm.dd hh24:mi:ss') desc)xxx) where <![CDATA[RNUM >= ${selectPageNo*rowCntPerPage-rowCntPerPage + 1}  
+			and RNUM <= ${selectPageNo*rowCntPerPage}]]>
+ </select>
+<!-- 총개수  --> 
+ <select id="getPosSalesAllCnt" parameterType="com.naver.erp.PosSearchDTO" resultType="int">
+  		select count(*) from sales where business_no=#{business_no}
+	</select> 
+
+<!-- 메뉴 매출 리스트 -->
+<select id="getPosDetailList" parameterType="String" resultType="java.util.HashMap">
+select
+     xxx.menu_name as "menu_name"    
+     ,xxx.sales_count||'' as  "sales_count"
+     ,xxx.menu_price||''	as "menu_price"
+     ,xxx.business_no   as "business_no"
+     ,to_char(xxx.sales_date,'yyyymmddhh:mi:ss')   as "sales_date"
+from(select  
+ 	*
+  from sales
+  where business_no=#{business_no} and to_char(sales_date, 'yyyy.mm.dd hh:mi:ss')=to_char(to_date(#{sales_date},'yyyy-mm-dd (dy) HH:MI:SS PM'),'yyyy.mm.dd hh:mi:ss'))xxx 
+</select>
+
+  
+ <delete id="getDeleteCnt" parameterType="com.naver.erp.PosMenuListDTO">
+	delete from sales where business_no=#{business_no1} and to_char(sales_date, 'yyyy.mm.dd hh:mi:ss')=to_char(to_date(#{sales_date1}, 'yyyymmddhh:mi:ss'),'yyyy.mm.dd hh:mi:ss')  
+</delete> 
+ 
+</mapper>

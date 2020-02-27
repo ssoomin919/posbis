@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm-->
+<!-- mapper 태그 선언 -->
+<!--mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm-->
+	<!-- namespace 속성값으로 [DAO 인터페이스명]이 오며 -->
+	<!-- [DAO 인터페이스] 메소드명과 동일한 id 값을 소유한 태그를 내포하고 있다. -->
+<!--mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm-->
+<mapper namespace="com.naver.erp.PreChartDAO">
+
+
+<!-- ============== u_no 얻기 =========================================================================== -->
+
+	<select id='getUserNo' parameterType="String" resultType="int">	
+		select u_no from user_info where user_id=#{user_id}
+	</select>
+	
+<!-- ============== business_no 얻기 =========================================================================== -->
+	
+	<select id='getBusinessNoList' parameterType="int" resultType="java.util.HashMap">	
+		select 
+			business_no as "business_no" 
+			, business_name as "business_name"
+			
+		from business_info 
+			where 
+				1=1 
+				and u_no=#{u_no}
+			
+	</select>
+
+<!-- 	<select id='getBusinessNoList' parameterType="int" resultType="String">	
+		select business_no as "business_no" from business_info 
+			where 
+				1=1 
+				and u_no=#{u_no}
+			
+	</select> -->
+	
+<!-- ============== 나의 가게 월 매출 구하기 =========================================================================== -->
+	
+	<select id='getSalesMonthList' parameterType="com.naver.erp.PreChartParamDTO" resultType="java.util.HashMap">	
+		    select
+			    nvl(to_char(sum(m.menu_price * s.sales_count)),'0') as "sales_amount"
+			    , mon.month as "판매월"
+			    from
+			    (
+			        select '01' "MONTH" from dual
+			        union select '02' from dual
+			        union select '03' from dual
+			        union select '04' from dual
+			        union select '05' from dual
+			        union select '06' from dual
+			        union select '07' from dual
+			        union select '08' from dual
+			        union select '09' from dual
+			        union select '10' from dual
+			        union select '11' from dual
+			        union select '12' from dual
+			    ) mon
+			     left outer join sales s on mon.month=extract(month from s.sales_date)
+			     left outer join  business_info b on b.business_no=s.business_no
+			     left outer join menu m on s.menu_no=m.menu_no
+			     and b.business_no = #{changeBusinessNo}
+			     and extract(year from s.sales_date) = #{changeYear}
+			    group by mon.month
+			    order by mon.month
+
+			
+	</select>
+	
+	
+<!-- ============== 같은 업종, 같은 동네 가게들 월평균 구하기 =========================================================================== -->
+	
+	<select id='getAllSalesMonthList' parameterType="com.naver.erp.PreChartParamDTO" resultType="java.util.HashMap">	
+		     select
+
+			    nvl(to_char(sum(m.menu_price * s.sales_count)/
+			    (select count(*) from business_info b
+			    where b.business_no != #{changeBusinessNo}
+			    and ( b.addr_no = (select addr_no from business_info where business_no=#{changeBusinessNo}) )
+			    and ( b.business_type_code = (select business_type_code from business_info where business_no=#{changeBusinessNo}) )
+			    )),'0') as "sales_amount"
+			    
+			    , mon.month as "판매월"
+			    
+			    from
+			    (
+			        select '01' "MONTH" from dual
+			        union select '02' from dual
+			        union select '03' from dual
+			        union select '04' from dual
+			        union select '05' from dual
+			        union select '06' from dual
+			        union select '07' from dual
+			        union select '08' from dual
+			        union select '09' from dual
+			        union select '10' from dual
+			        union select '11' from dual
+			        union select '12' from dual
+			    ) mon
+			     left outer join sales s on mon.month=extract(month from s.sales_date)
+			     left outer join  business_info b on b.business_no=s.business_no
+			     left outer join menu m on s.menu_no=m.menu_no
+			     and b.business_no != #{changeBusinessNo}
+			     and ( b.addr_no = (select addr_no from business_info where business_no=#{changeBusinessNo}) )
+			     and ( b.business_type_code = (select business_type_code from business_info where business_no=#{changeBusinessNo}) )
+			     and extract(year from s.sales_date) = #{changeYear}
+			    group by mon.month
+			    order by mon.month
+			
+	</select>
+
+	
+<!-- ============== 나의 가게 인기메뉴 구하기 =========================================================================== -->
+<!-- rank로 순서를 정하고 sua(s.sales_count)를 문자형으로 고쳐서 List<Map<String,String>> 형태를 맞춰줌. -->
+ 	
+	<select id='getMyPopularityMenu' parameterType="com.naver.erp.PreChartParamDTO" resultType="java.util.HashMap">
+	<!-- <select id='getMyPopularityMenu' parameterType="String" resultType="String"> -->	
+		     select menu_name, sales_count from(
+			    select
+			        s.menu_no "menu_no"
+			        , (select m.menu_name from menu m where s.menu_no = m.menu_no) "MENU_NAME"
+			        , sum(s.sales_count)||'' "SALES_COUNT"
+			        ,rank() over (order by sum(s.sales_count) desc) "RN"
+			    from sales s
+			      where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear}
+			      group by s.menu_no
+			      )
+			where rn=1
+
+	</select>
+	
+	
+<!-- ============== 다른 가게 인기메뉴 구하기 =========================================================================== -->
+	
+	<select id='getOthersPopularityMenu' parameterType="com.naver.erp.PreChartParamDTO" resultType="java.util.HashMap">
+	<!-- <select id='getOthersPopularityMenu' parameterType="String" resultType="String">	 -->
+		     select menu_name, sales_count from(
+			    select
+			        s.menu_no "menu_no"
+			        , (select m.menu_name from menu m where s.menu_no = m.menu_no) "MENU_NAME"
+			        , sum(s.sales_count)||'' "SALES_COUNT"
+			        ,rank() over (order by sum(s.sales_count) desc) "RN"
+			    from sales s , business_info b
+			      where s.business_no = b.business_no
+			        and b.business_no != #{changeBusinessNo}
+			        and ( b.addr_no = (select addr_no from business_info where business_no=#{changeBusinessNo}) )
+			        and ( b.business_type_code = (select business_type_code from business_info where business_no=#{changeBusinessNo}) )
+			        and extract(year from s.sales_date) = #{changeYear}
+			      group by s.menu_no
+			      order by 3 desc)
+			where rn=1 
+
+	</select>
+
+
+<!-- ============== 같은 업종, 같은 동네 가게들 수 구하기 =========================================================================== -->
+	
+	<select id='getStoreCount' parameterType="com.naver.erp.PreChartParamDTO" resultType="String">
+		select count(*)||'' "store_count"  from business_info b
+		    where b.business_no != #{changeBusinessNo}
+		    and ( b.addr_no = (select addr_no from business_info where business_no=#{changeBusinessNo}) )
+		    and ( b.business_type_code = (select business_type_code from business_info where business_no=#{changeBusinessNo}) )
+
+	</select>	
+	
+	
+	
+	
+<!-- ============== 상품별 판매 횟수 구하기 =========================================================================== -->
+	
+	<select id='getMenuSalesCount' parameterType="com.naver.erp.PreChartParamDTO" resultType="java.util.HashMap">	
+		    select menu_name, sales_count from(
+			    select
+				    s.menu_no "menu_no"
+				    , (select m.menu_name from menu m where s.menu_no = m.menu_no) "MENU_NAME"
+				    , sum(s.sales_count)||'' "SALES_COUNT"
+				    ,rank() over (order by sum(s.sales_count) desc) "RN"
+				from sales s
+				  where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear}
+				  group by s.menu_no
+			  )
+			
+	</select>	
+		
+		
+		
+<!-- ============== 상품별 순이익 구하기 =========================================================================== -->
+	
+	<select id='getSalesBenefit' parameterType="com.naver.erp.PreChartParamDTO" resultType="java.util.HashMap">	
+			select menu_name, sales_income from(
+				  select
+				      s.menu_no "menu_no"
+				      , (select m.menu_name from menu m where s.menu_no = m.menu_no) "MENU_NAME"
+				      , sum(((m.menu_price * s.sales_count)-(m.menu_cost * s.sales_count)))||'' "SALES_INCOME"
+				      ,rank() over (order by sum(s.sales_count) desc) "RN"
+				  from sales s , menu m
+				    where s.menu_no=m.menu_no and s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear}
+				    group by s.menu_no
+			)
+			
+	</select>			
+		
+
+
+<!-- ============== 나의 가게별 월 매출 구하기 =========================================================================== -->
+	
+	<select id='getAllBusinessNoSalesMonthList' parameterType="com.naver.erp.AllBusinessNoDTO" resultType="java.util.HashMap">	
+	<!-- 	     select
+			    b.business_name
+			    , nvl(to_char(sum(s.menu_price * s.sales_count)),'0') as "sales_amount"
+			    , mon.month as "판매월"
+			    from business_info b left outer join sales s on b.business_no=s.business_no right outer join
+			    (
+			        select '01' "MONTH" from dual
+			        union select '02' from dual
+			        union select '03' from dual
+			        union select '04' from dual
+			        union select '05' from dual
+			        union select '06' from dual
+			        union select '07' from dual
+			        union select '08' from dual
+			        union select '09' from dual
+			        union select '10' from dual
+			        union select '11' from dual
+			        union select '12' from dual
+			    ) mon on mon.month=extract(month from s.sales_date)
+			     and b.business_no in
+				<foreach collection="allBusinessNo" item="allBusinessNo" open="(" close=")"  separator=",">
+						#{allBusinessNo}
+				</foreach>
+			     and extract(year from s.sales_date) = extract(year from sysdate)-1
+			    group by mon.month, b.business_name
+			    order by b.business_name , mon.month    -->
+
+			
+			select * from(   
+				<foreach collection="allBusinessNo" item="allBusinessNo" separator="union All" >
+					 select 
+					     nvl(b.business_name,(select b2.business_name from business_info b2 where b2.business_no = #{allBusinessNo} )) as "business_name"    
+					    , nvl(to_char(sum(s.menu_price * s.sales_count)),'0') as "sales_amount"
+					    , mon.month as "판매월"
+					    from business_info b left outer join sales s on b.business_no=s.business_no right outer join
+					    (
+					        select '01' "MONTH" from dual
+					        union select '02' from dual
+					        union select '03' from dual
+					        union select '04' from dual
+					        union select '05' from dual
+					        union select '06' from dual
+					        union select '07' from dual
+					        union select '08' from dual
+					        union select '09' from dual
+					        union select '10' from dual
+					        union select '11' from dual
+					        union select '12' from dual
+					    ) mon on mon.month=extract(month from s.sales_date)
+					     and b.business_no = #{allBusinessNo}  
+					     and extract(year from s.sales_date) = #{changeYear}
+					    group by mon.month, b.business_name
+
+				</foreach>
+					 
+				)
+				order by  1 , 3 
+	</select>		
+		
+		
+		
+		
+
+<!-- ==============시간대 별 판매 개수 구하기 (상품별 구분)  =========================================================================== -->
+	
+	<select id='getHourSalesCount' parameterType="com.naver.erp.PreChartParamDTO" resultType="java.util.HashMap">	
+			select 
+			    (select m.menu_name from menu m where m.menu_no = mv.menu_no) "hour_menu_name"
+			    , nvl(mv2.sales_count,'0') "hour00" 
+			    , nvl(mv3.sales_count,'0') "hour01"
+			    , nvl(mv4.sales_count,'0') "hour02"
+			    , nvl(mv5.sales_count,'0') "hour03"    
+			    , nvl(mv6.sales_count,'0') "hour04"
+			    , nvl(mv7.sales_count,'0') "hour05"
+			    , nvl(mv8.sales_count,'0') "hour06"
+			    , nvl(mv9.sales_count,'0') "hour07" 
+			    , nvl(mv10.sales_count,'0') "hour08"
+			    , nvl(mv11.sales_count,'0') "hour09" 
+			    , nvl(mv12.sales_count,'0') "hour10"
+			    , nvl(mv13.sales_count,'0') "hour11"
+			    , nvl(mv14.sales_count,'0') "hour12"
+			    , nvl(mv15.sales_count,'0') "hour13"
+			    , nvl(mv16.sales_count,'0') "hour14"
+			    , nvl(mv17.sales_count,'0') "hour15"
+			    , nvl(mv18.sales_count,'0') "hour16"
+			    , nvl(mv19.sales_count,'0') "hour17"
+			    , nvl(mv20.sales_count,'0') "hour18"
+			    , nvl(mv21.sales_count,'0') "hour19"
+			    , nvl(mv22.sales_count,'0') "hour20"
+			    , nvl(mv23.sales_count,'0') "hour21"   
+			    , nvl(mv24.sales_count,'0') "hour22"
+			    , nvl(mv25.sales_count,'0') "hour23"
+			     from (   
+			      (select m.menu_no "MENU_NO", m.business_no "BUSINESS_NO" from menu m where m.business_no=#{changeBusinessNo} order by m.menu_no) mv 
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '00' group by s.menu_no ) mv2 
+			      on  mv.menu_no = mv2.menu_no 
+			        
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '01' group by s.menu_no ) mv3 
+			      on mv.menu_no = mv3.menu_no        
+			
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date)  = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '02' group by s.menu_no ) mv4 
+			      on mv.menu_no = mv4.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '03' group by s.menu_no ) mv5 
+			      on mv.menu_no = mv5.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '04' group by s.menu_no ) mv6 
+			      on mv.menu_no = mv6.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '05' group by s.menu_no ) mv7 
+			      on mv.menu_no = mv7.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '06' group by s.menu_no ) mv8 
+			      on mv.menu_no = mv8.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '07' group by s.menu_no ) mv9 
+			      on mv.menu_no = mv9.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '08' group by s.menu_no ) mv10 
+			      on mv.menu_no = mv10.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '09' group by s.menu_no ) mv11
+			      on mv.menu_no = mv11.menu_no
+			      
+			      left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '10' group by s.menu_no ) mv12
+			      on mv.menu_no = mv12.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '11' group by s.menu_no ) mv13
+			      on mv.menu_no = mv13.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '12' group by s.menu_no ) mv14
+			      on mv.menu_no = mv14.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '13' group by s.menu_no ) mv15
+			      on mv.menu_no = mv15.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '14' group by s.menu_no ) mv16
+			      on mv.menu_no = mv16.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '15' group by s.menu_no ) mv17
+			      on mv.menu_no = mv17.menu_no
+			      
+			       left outer join                                                                                                                                                                     
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '16' group by s.menu_no ) mv18
+			      on mv.menu_no = mv18.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '17' group by s.menu_no ) mv19
+			      on mv.menu_no = mv19.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '18' group by s.menu_no ) mv20
+			      on mv.menu_no = mv20.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '19' group by s.menu_no ) mv21
+			      on mv.menu_no = mv21.menu_no
+			        
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '20' group by s.menu_no ) mv22
+			      on mv.menu_no = mv22.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '21' group by s.menu_no ) mv23
+			      on mv.menu_no = mv23.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '22' group by s.menu_no ) mv24
+			      on mv.menu_no = mv24.menu_no
+			      
+			       left outer join
+			      (select s.menu_no "MENU_NO" , sum(s.sales_count)||'' "SALES_COUNT" from sales s where s.business_no=#{changeBusinessNo} and extract(year from s.sales_date) = #{changeYear} and extract(month from s.sales_date) = #{changeMonth} and to_char(s.sales_date, 'HH24') = '23' group by s.menu_no ) mv25
+			      on mv.menu_no = mv25.menu_no
+			      
+			    )    
+	
+			
+	</select>
+		
+		
+		
+<!-- ============== open 시간 구하기 =========================================================================== -->
+	
+	<select id='getSalesOpenTime' parameterType="String" resultType="String">	
+			select business_open "business_open" from sales_time where business_no = #{business_no}
+			
+	</select>		
+	
+	<!-- ============== close 시간 구하기 =========================================================================== -->
+	
+	<select id='getSalesCloseTime' parameterType="String" resultType="String">	
+			select business_close "business_close" from sales_time where business_no = #{business_no}
+			
+	</select>	
+		
+	
+</mapper>
+	
