@@ -97,7 +97,7 @@
 //==================================================================================================================	
 			//System.out.println( this.salesService.getSetMenuList(marketingDTO) );
 			//System.out.println( marketingDTO.getChangeBusinessNo() );		
-			List<Map<String,String>> setMenuListChart = this.salesService.getSetMenuListChart(marketingDTO);
+			List<Map<String,String>> setMenuListChart = this.salesService.getSetMenuList(marketingDTO);
 			setMenuDTO.setSetMenuList(setMenuListChart);
 			
 			String changeBusinessNo = marketingDTO.getChangeBusinessNo();

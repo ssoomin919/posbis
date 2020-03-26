@@ -708,7 +708,7 @@ select::-ms-expand { display: none; }
                   <tr >
                   <td align=center class="sumSales" style="padding:0 0 30 0">
                   [거래 건수]: ${salesListAllCnt}&nbsp;&nbsp;
-                    [판매 수량] : ${salesSum.sum_sales_count} &nbsp;&nbsp;
+                  [판매 수량] : ${salesSum.sum_sales_count} &nbsp;&nbsp;
                   [총 매출] : ${salesSum.sum_sales_amount}원&nbsp;&nbsp;
                   [매출이익] : ${salesSum.sum_sales_income}원
 

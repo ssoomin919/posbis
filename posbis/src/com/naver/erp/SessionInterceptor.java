@@ -73,7 +73,7 @@ public class SessionInterceptor extends HandlerInterceptorAdapter {
 		
 		
 		if(user_id==null) {
-			// HttpServletResponse 객체의 sendRedirect 메솓 호출로 로그인 화면으로 이동. 
+			// HttpServletResponse 객체의 sendRedirect 메소드 호출로 로그인 화면으로 이동. 
 				//<주의> 이동 URL 주소에서 컨택스루트명인 /erp 를 빼지 말것
 			response.sendRedirect( ctRoot+"/logoutForm.do" );
 			System.out.println("<예외 없이 접속 성공>[접속 URI] → " + uri + "[호출메소드] → SessionInterceptor.preHandle(~)\n ");

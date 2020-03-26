@@ -46,6 +46,5 @@ public interface SalesDAO {
 	// 세트메뉴 리스트 리턴하는 메소드 선언
 	List<Map<String,String>> getSetMenuList(MarketingDTO marketingDTO);
 
-	List<Map<String, String>> getSetMenuListChart(MarketingDTO marketingDTO);
 	
 }
