@@ -304,7 +304,7 @@
    <!-- 세트메뉴 추천 리스트 구하는 select 태그 -->
    <!--**************************************************************************-->
       <select id="getSetMenuList" parameterType="com.naver.erp.MarketingDTO" resultType="java.util.HashMap">
-            select * from (
+      select * from (
           select
              busi_type_code                     "BUSI_CODE"
               ,busi_type_name1                        "BUSI_TYPE1"
@@ -338,8 +338,7 @@
                 </if>
               group by c.business_type_code, c.business_type_name1, c.business_type_name2, s1.menu_name, s2.menu_name, s1.sales_date
           )
-          group by busi_type_code, busi_type_name1, busi_type_name2, menu_name1||' &amp; '||menu_name2
-          order by 5 desc)
+          group by busi_type_code, busi_type_name1, busi_type_name2, menu_name1||' &amp; '||menu_name2)
       where ranking&lt;=5
    </select>
    
